@@ -18,12 +18,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(username, password);
+      await login(username, password, role);
       localStorage.setItem('lastRole', role);
       navigate('/');
     } catch (err) {
       const errorMsg = err.response?.data?.error || 'Login failed';
       setError(errorMsg);
+      // Clear cached role on mismatch to prevent repeated failures
+      if (errorMsg.includes('Role does not match')) {
+        localStorage.removeItem('lastRole');
+      }
     } finally {
       setLoading(false);
     }
