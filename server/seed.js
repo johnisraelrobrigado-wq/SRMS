@@ -4,12 +4,13 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Hash password
   const hashedPassword = await bcrypt.hash('admin123', 10);
+  const residentPassword = await bcrypt.hash('sanroque', 10);
 
-  // Create admin user
-  const admin = await prisma.user.create({
-    data: {
+  const admin = await prisma.user.upsert({
+    where: { username: 'admin' },
+    update: {},
+    create: {
       fullName: 'System Administrator',
       username: 'admin',
       password: hashedPassword,
@@ -18,6 +19,19 @@ async function main() {
   });
 
   console.log('Created admin user:', admin.username);
+
+  const resident = await prisma.user.upsert({
+    where: { username: 'resident' },
+    update: {},
+    create: {
+      fullName: 'Juan Dela Cruz',
+      username: 'resident',
+      password: residentPassword,
+      role: 'RESIDENT'
+    }
+  });
+
+  console.log('Created resident user:', resident.username);
 }
 
 main()
