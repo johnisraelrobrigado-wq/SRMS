@@ -24,7 +24,7 @@ async function main() {
     where: { username: 'resident' },
     update: {},
     create: {
-      fullName: 'Juan Dela Cruz',
+      fullName: 'Resident User',
       username: 'resident',
       password: residentPassword,
       role: 'RESIDENT'
