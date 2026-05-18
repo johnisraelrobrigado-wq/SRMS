@@ -83,11 +83,10 @@ router.post('/login', validate(loginValidation), async (req, res) => {
       return;
     }
 
-    // Validate role matches user's actual role
-    const requestedRole = role?.toUpperCase();
-    if (requestedRole && requestedRole !== user.role) {
-      res.status(403).json({ error: 'Access denied. Role does not match user account type.' });
-      return;
+    // Role validation (informational only - doesn't block login)
+    // If role is provided, just log it for reference
+    if (role) {
+      console.log(`User ${username} logging in with role: ${role}, actual role: ${user.role}`);
     }
 
     const token = generateToken(user);
