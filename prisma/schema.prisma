@@ -8,14 +8,16 @@ datasource db {
 }
 
 model User {
-  id          Int           @id @default(autoincrement())
-  username    String        @unique
-  password    String
-  fullName    String
-  role        Role          @default(RESIDENT)
-  created_at  DateTime      @default(now())
-  activityLog ActivityLog[]
-  resident    Resident?
+  id               Int           @id @default(autoincrement())
+  username         String        @unique
+  password         String
+  fullName         String
+  role             Role          @default(RESIDENT)
+  email            String?
+  profilePicture   String?
+  created_at       DateTime      @default(now())
+  activityLog      ActivityLog[]
+  resident         Resident?
 
   @@map("users")
 }

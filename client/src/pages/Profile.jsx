@@ -1,196 +1,392 @@
-import { useState, useEffect } from 'react';
-import { Typography, Box, Paper, CircularProgress, Grid, TextField } from '@mui/material';
-import { Person, Email, Badge, Home } from '@mui/icons-material';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Typography, Box, Paper, CircularProgress, Grid, TextField,
+  Button, Dialog, DialogTitle, DialogContent, DialogActions,
+  FormControl, InputLabel, Select, MenuItem, IconButton, Alert, Chip, Avatar, Divider
+} from '@mui/material';
+import {
+  Camera, Person, Email, Badge, Home, CalendarToday,
+  Phone, Work, Favorite, Transgender, Save, Close
+} from '@mui/icons-material';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+
+const fileLink = (p) => `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${p}`;
 
 const Profile = () => {
-  const [user, setUser] = useState(null);
-  const [resident, setResident] = useState(null);
+  const { user, setUser } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  const [residents, setResidents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editResidentOpen, setEditResidentOpen] = useState(false);
+  const [editingResident, setEditingResident] = useState(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const fileRef = useRef(null);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
+  // ── Account form state ─────────────────────────────────────
+  const [accForm, setAccForm] = useState({ fullName: '', email: '', password: '', profilePicture: '' });
+  const [resForm, setResForm] = useState({
+    full_name: '', age: 0, gender: '', birthday: '',
+    address: '', contact: '', occupation: '', civil_status: ''
+  });
 
-  const fetchProfile = async () => {
+  useEffect(() => { fetchData(); }, []);
+
+  const fetchData = async () => {
     try {
-      const response = await api.get('auth/me');
-      const userData = response.data.user;
-      setUser(userData);
-      if (userData.resident) {
-        setResident(userData.resident);
+      const { data } = await api.get('users/me');
+      const u = data.user;
+      setAccForm(prev => ({
+        ...prev,
+        fullName: u.fullName || '',
+        email: u.email || '',
+        profilePicture: u.profilePicture || ''
+      }));
+      if (u.resident) {
+        setResForm({
+          full_name: u.resident.full_name || '',
+          age: u.resident.age || 0,
+          gender: u.resident.gender || '',
+          birthday: u.resident.birthday ? new Date(u.resident.birthday).toISOString().split('T')[0] : '',
+          address: u.resident.address || '',
+          contact: u.resident.contact || '',
+          occupation: u.resident.occupation || '',
+          civil_status: u.resident.civil_status || ''
+        });
       }
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-    } finally {
-      setLoading(false);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  // ── Auto-calculate age from birthday ────────────────────────
+  useEffect(() => {
+    if (resForm.birthday) {
+      const birth = new Date(resForm.birthday);
+      const today = new Date();
+      let a = today.getFullYear() - birth.getFullYear();
+      const md = today.getMonth() - birth.getMonth();
+      if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) a--;
+      setResForm(p => ({ ...p, age: a }));
+    }
+  }, [resForm.birthday]);
+
+  // ── Account update ─────────────────────────────────────────
+  const handleAccSubmit = async () => {
+    setError('');
+    try {
+      const { data } = await api.put('users/profile', accForm);
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setSuccess('Account updated.');
+      setTimeout(() => setSuccess(''), 3500);
+      setEditOpen(false);
+    } catch (e) {
+      setError(e.response?.data?.error || 'Failed to update account');
+      setTimeout(() => setError(''), 4000);
     }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  // ── Profile picture upload ─────────────────────────────────
+  const handlePictureSelect = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append('picture', f);
+    api.post('users/profile/picture', fd)
+      .then(({ data }) => {
+        setUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setAccForm(p => ({ ...p, profilePicture: data.user.profilePicture || '' }));
+        setSuccess('Profile picture updated.');
+        setTimeout(() => setSuccess(''), 3500);
+      })
+      .catch(e => {
+        setError(e.response?.data?.error || 'Upload failed');
+        setTimeout(() => setError(''), 4000);
+      });
+  };
+
+  // ── Resident update ─────────────────────────────────────────
+  const openResidentEdit = () => {
+    setEditingResident({ ...resForm });
+    setEditResidentOpen(true);
+  };
+  const handleResidentSubmit = async () => {
+    setError('');
+    const r = editingResident;
+    if (!r.full_name || !r.gender || !r.birthday || !r.address || !r.civil_status) {
+      setError('Please fill in all required fields.'); return;
+    }
+    try {
+      const residentId = user?.resident?.id;
+      if (!residentId) {
+        // No resident profile yet — create one
+        await api.post('residents', r);
+      } else {
+        await api.put('residents/' + residentId, r);
+      }
+      setSuccess('Resident profile saved.');
+      setTimeout(() => setSuccess(''), 3500);
+      setEditResidentOpen(false);
+      fetchData();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Failed to save resident profile');
+      setTimeout(() => setError(''), 4000);
+    }
+  };
+
+  if (loading) return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+      <CircularProgress />
+    </Box>
+  );
 
   return (
     <Box>
+      {error   && <Alert severity="error"   sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+
       <Typography variant="h4" fontWeight={600} color="#1e293b" mb={3}>
         My Profile
       </Typography>
 
-      <Grid container spacing={3}>
-        {/* Profile Header */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Box
-              sx={{
-                width: 100,
-                height: 100,
-                borderRadius: '50%',
-                bgcolor: '#1e293b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '36px'
-              }}
-            >
-              {user?.fullName?.charAt(0) || 'U'}
-            </Box>
-            <Box>
-              <Typography variant="h5" fontWeight={600}>
-                {user?.fullName}
-              </Typography>
-              <Typography variant="body1" color="#64748b">
-                {user?.role}
-              </Typography>
-              <Typography variant="body2" color="#94a3b8" sx={{ mt: 0.5 }}>
-                @{user?.username}
-              </Typography>
-            </Box>
-          </Paper>
-        </Grid>
+      {/* ── Profile Picture Header ──────────────────────────── */}
+      <Paper sx={{ p: 3, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
+        <Box sx={{ position: 'relative' }}>
+          <Avatar
+            src={accForm.profilePicture ? fileLink(accForm.profilePicture) : ''}
+            sx={{
+              width: 100, height: 100, bgcolor: '#1e293b', fontSize: '36px',
+              border: '3px solid #e2e8f0'
+            }}
+          >
+            {(!accForm.profilePicture) && (user?.fullName?.charAt(0) || 'U')}
+          </Avatar>
+          <IconButton
+            size="small"
+            onClick={() => fileRef.current?.click()}
+            sx={{
+              position: 'absolute', bottom: 0, right: 0,
+              bgcolor: '#16a34a', color: 'white',
+              '&:hover': { bgcolor: '#15803d' }
+            }}
+          >
+            <Camera fontSize="small" />
+          </IconButton>
+          <input ref={fileRef} type="file" hidden accept="image/*" onChange={handlePictureSelect} />
+        </Box>
+        <Box>
+          <Typography variant="h5" fontWeight={600}>{user?.fullName}</Typography>
+          <Typography variant="body1" color="#64748b">{user?.role}</Typography>
+          <Typography variant="body2" color="#94a3b8">@{user?.username}</Typography>
+        </Box>
+      </Paper>
 
-        {/* Account Details */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="h6" fontWeight={600} mb={2} color="#1e293b">
-              Account Information
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Person sx={{ color: '#64748b' }} />
-                <Box>
-                  <Typography variant="body2" color="#64748b">Full Name</Typography>
-                  <Typography variant="body1">{user?.fullName}</Typography>
-                </Box>
+      {/* ── Admin: Account Information only ─────────────────── */}
+      {isAdmin && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" fontWeight={600} color="#1e293b">Account Information</Typography>
+                <Button
+                  size="small" variant="outlined" startIcon={<Save />}
+                  onClick={() => { setAccForm(p => ({ ...p, fullName: user?.fullName || '', email: user?.email || '' })); setEditOpen(true); }}
+                  sx={{ color: '#1e293b', borderColor: '#1e293b' }}
+                >
+                  Edit Profile
+                </Button>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Badge sx={{ color: '#64748b' }} />
-                <Box>
-                  <Typography variant="body2" color="#64748b">Username</Typography>
-                  <Typography variant="body1">{user?.username}</Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Email sx={{ color: '#64748b' }} />
-                <Box>
-                  <Typography variant="body2" color="#64748b">Email</Typography>
-                  <Typography variant="body1">{user?.email || 'Not provided'}</Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box sx={{ width: 24, color: '#64748b' }}>
-                  <i className="fas fa-user-tag" />
-                </Box>
-                <Box>
-                  <Typography variant="body2" color="#64748b">Role</Typography>
-                  <Typography variant="body1">{user?.role}</Typography>
-                </Box>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
 
-        {/* Resident Details */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, borderRadius: 2 }}>
-            <Typography variant="h6" fontWeight={600} mb={2} color="#1e293b">
-              Resident Information
-            </Typography>
-            {resident ? (
+              <Grid container spacing={3}>
+                {[
+                  { icon: <Person />, label: 'Full Name',  value: user?.fullName },
+                  { icon: <Badge />,  label: 'Username',   value: user?.username },
+                  { icon: <Email />,  label: 'Email',      value: accForm.email || 'Not provided' },
+                  { icon: <Camera />, label: 'Role',       value: user?.role },
+                ].map(({ icon, label, value }) => (
+                  <Grid item xs={12} sm={6} key={label}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ color: '#64748b' }}>{icon}</Box>
+                      <Box>
+                        <Typography variant="body2" color="#64748b">{label}</Typography>
+                        <Typography variant="body1">{value}</Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ── Resident: split view ─────────────────────────────── */}
+      {!isAdmin && (
+        <Grid container spacing={3}>
+          {/* Resident Information */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 3, borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" fontWeight={600} color="#1e293b">Resident Information</Typography>
+              </Box>
+
+              {user?.resident ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {[
+                    { icon: <Person />,       label: 'Full Name',  value: resForm.full_name },
+                    { icon: <Transgender />,  label: 'Gender',     value: resForm.gender },
+                    { icon: <CalendarToday />,label: 'Birthday',   value: resForm.birthday ? new Date(resForm.birthday).toLocaleDateString() : '—' },
+                    { icon: <Badge />,        label: 'Age',        value: resForm.age },
+                    { icon: <Home />,         label: 'Address',    value: resForm.address },
+                    { icon: <Phone />,        label: 'Contact',    value: resForm.contact || '—' },
+                    { icon: <Work />,         label: 'Occupation', value: resForm.occupation || '—' },
+                    { icon: <Favorite />,     label: 'Civil Status',value: resForm.civil_status },
+                  ].map(({ icon, label, value }) => (
+                    <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ color: '#64748b' }}>{icon}</Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" color="#64748b">{label}</Typography>
+                        <Typography variant="body1">{value || '—'}</Typography>
+                      </Box>
+                    </Box>
+                  ))}
+
+                  <Divider sx={{ my: 1 }} />
+                  <Button
+                    size="small" variant="outlined"
+                    startIcon={<Save />}
+                    onClick={openResidentEdit}
+                    sx={{ alignSelf: 'flex-start', color: '#16a34a', borderColor: '#16a34a' }}
+                  >
+                    Edit Resident Info
+                  </Button>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="#64748b">
+                  No resident profile linked to this account.
+                </Typography>
+              )}
+            </Paper>
+          </Grid>
+
+          {/* Account Information */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 3, borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" fontWeight={600} color="#1e293b">Account Information</Typography>
+              </Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Person sx={{ color: '#64748b' }} />
-                  <Box>
-                    <Typography variant="body2" color="#64748b">Full Name</Typography>
-                    <Typography variant="body1">{resident.full_name}</Typography>
+                {[
+                  { icon: <Person />,  label: 'Full Name', value: accForm.fullName },
+                  { icon: <Badge />,   label: 'Username',  value: user?.username },
+                  { icon: <Email />,   label: 'Email',     value: accForm.email || 'Not provided' },
+                ].map(({ icon, label, value }) => (
+                  <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ color: '#64748b' }}>{icon}</Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="#64748b">{label}</Typography>
+                      <Typography variant="body1">{value}</Typography>
+                    </Box>
                   </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ width: 24, color: '#64748b' }}>
-                    <i className="fas fa-calendar" />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="#64748b">Birthdate</Typography>
-                    <Typography variant="body1">{new Date(resident.birthdate).toLocaleDateString()}</Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ width: 24, color: '#64748b' }}>
-                    <i className="fas fa-venus-mars" />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="#64748b">Gender</Typography>
-                    <Typography variant="body1">{resident.gender}</Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Home sx={{ color: '#64748b' }} />
-                  <Box>
-                    <Typography variant="body2" color="#64748b">Address</Typography>
-                    <Typography variant="body1">{resident.address}</Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ width: 24, color: '#64748b' }}>
-                    <i className="fas fa-map-pin" />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="#64748b">Purok</Typography>
-                    <Typography variant="body1">{resident.purok}</Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ width: 24, color: '#64748b' }}>
-                    <i className="fas fa-briefcase" />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="#64748b">Occupation</Typography>
-                    <Typography variant="body1">{resident.occupation || 'Not provided'}</Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ width: 24, color: '#64748b' }}>
-                    <i className="fas fa-rings-wedding" />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="#64748b">Civil Status</Typography>
-                    <Typography variant="body1">{resident.civil_status}</Typography>
-                  </Box>
-                </Box>
+                ))}
+                <Divider sx={{ my: 1 }} />
+                <Button
+                  size="small" variant="outlined"
+                  startIcon={<Save />}
+                  onClick={() => { setEditOpen(true); }}
+                  sx={{ alignSelf: 'flex-start', color: '#1e293b', borderColor: '#1e293b' }}
+                >
+                  Edit Account
+                </Button>
               </Box>
-            ) : (
-              <Typography variant="body2" color="#64748b">
-                No resident profile linked to this account.
-              </Typography>
-            )}
-          </Paper>
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
+      )}
+
+      {/* ── Edit Account Dialog ───────────────────────────────┬─ */}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Account</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              label="Full Name" fullWidth
+              value={accForm.fullName}
+              onChange={(e) => setAccForm(p => ({ ...p, fullName: e.target.value }))}
+            />
+            <TextField
+              label="Email" fullWidth type="email"
+              value={accForm.email}
+              onChange={(e) => setAccForm(p => ({ ...p, email: e.target.value }))}
+            />
+            <TextField
+              label="New Password (leave blank to keep current)" fullWidth type="password"
+              value={accForm.password}
+              onChange={(e) => setAccForm(p => ({ ...p, password: e.target.value }))}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)}>Cancel</Button>
+          <Button onClick={handleAccSubmit} variant="contained" sx={{ bgcolor: '#1e293b' }}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Edit Resident Dialog ──────────────────────────────┴─ */}
+      <Dialog open={editResidentOpen} onClose={() => setEditResidentOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Resident Information</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField label="Full Name" fullWidth value={editingResident?.full_name || ''}
+              onChange={(e) => setEditingResident(p => ({ ...p, full_name: e.target.value }))} />
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField label="Birthday" type="date" fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  value={editingResident?.birthday || ''}
+                  onChange={(e) => setEditingResident(p => ({ ...p, birthday: e.target.value }))} />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField label="Age" type="number" fullWidth InputProps={{ readOnly: true }}
+                  value={editingResident?.age || 0} />
+              </Grid>
+            </Grid>
+            <FormControl fullWidth>
+              <InputLabel>Gender</InputLabel>
+              <Select value={editingResident?.gender || ''} label="Gender"
+                onChange={(e) => setEditingResident(p => ({ ...p, gender: e.target.value }))}>
+                <MenuItem value="Male">Male</MenuItem>
+                <MenuItem value="Female">Female</MenuItem>
+                <MenuItem value="Other">Other</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField label="Address" fullWidth value={editingResident?.address || ''}
+              onChange={(e) => setEditingResident(p => ({ ...p, address: e.target.value }))} />
+            <TextField label="Contact" fullWidth value={editingResident?.contact || ''}
+              onChange={(e) => setEditingResident(p => ({ ...p, contact: e.target.value }))} />
+            <TextField label="Occupation" fullWidth value={editingResident?.occupation || ''}
+              onChange={(e) => setEditingResident(p => ({ ...p, occupation: e.target.value }))} />
+            <FormControl fullWidth>
+              <InputLabel>Civil Status</InputLabel>
+              <Select value={editingResident?.civil_status || ''} label="Civil Status"
+                onChange={(e) => setEditingResident(p => ({ ...p, civil_status: e.target.value }))}>
+                <MenuItem value="Single">Single</MenuItem>
+                <MenuItem value="Married">Married</MenuItem>
+                <MenuItem value="Widowed">Widowed</MenuItem>
+                <MenuItem value="Separated">Separated</MenuItem>
+                <MenuItem value="Divorced">Divorced</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditResidentOpen(false)}>Cancel</Button>
+          <Button onClick={handleResidentSubmit} variant="contained" sx={{ bgcolor: '#1e293b' }}>Save</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -129,8 +129,15 @@ router.get('/me', authenticate, async (req, res) => {
         username: true,
         fullName: true,
         role: true,
+        email: true,
+        profilePicture: true,
         resident: {
-          select: { id: true, full_name: true, age: true, gender: true, address: true }
+          select: {
+            id: true, full_name: true,
+            birthday: true, age: true,
+            gender: true, address: true,
+            contact: true, occupation: true, civil_status: true
+          }
         }
       }
     });

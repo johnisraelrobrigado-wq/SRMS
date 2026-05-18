@@ -53,35 +53,70 @@ router.get('/:id', authenticate, async (req, res) => {
       return;
     }
 
+    // Residents may only view their own profile
+    if (req.user.role !== 'ADMIN' && (!resident.user_id || resident.user_id !== req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     res.json({ resident });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch resident' });
   }
 });
 
-// POST /api/residents (create) - Admin only
-router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
+// POST /api/residents (create) - Admin or self-only
+router.post('/', authenticate, async (req, res) => {
   try {
     const { birthday, ...rest } = req.body;
-    const resident = await prisma.resident.create({
-      data: {
-        ...rest,
-        birthday: birthday ? new Date(birthday) : new Date()
-      }
-    });
 
-    res.status(201).json({ message: 'Resident created', resident });
+    // Residents may only create a profile for themselves
+    if (req.user.role !== 'ADMIN') {
+      const existing = await prisma.resident.findFirst({
+        where: { user_id: req.user.id }
+      });
+      if (existing) {
+        return res.status(400).json({ error: 'Resident profile already exists for this account' });
+      }
+    }
+
+    const data = {
+      ...rest,
+      birthday: birthday ? new Date(birthday) : new Date()
+    };
+    // Auto-link to the logged-in user when a resident creates their own record
+    if (req.user.role !== 'ADMIN') {
+      data.user_id = req.user.id;
+    }
+
+    const resident = await prisma.resident.create({ data });
+
+    res.status(201).json({ message: 'Resident profile created', resident });
   } catch (error) {
     console.error('Create resident error:', error);
     res.status(500).json({ error: 'Failed to create resident', details: error.message });
   }
 });
 
-// PUT /api/residents/:id - Admin only
-router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+// PUT /api/residents/:id - Admin or own profile only
+router.put('/:id', authenticate, async (req, res) => {
   try {
     const { birthday, ...rest } = req.body;
-    const resident = await prisma.resident.update({
+    const existing = await prisma.resident.findUnique({
+      where: { id: parseInt(req.params.id) }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Resident not found' });
+    }
+
+    // Residents may only edit their own profile
+    if (req.user.role !== 'ADMIN') {
+      if (!existing.user_id || existing.user_id !== req.user.id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    const updated = await prisma.resident.update({
       where: { id: parseInt(req.params.id) },
       data: {
         ...rest,
@@ -89,7 +124,7 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
       }
     });
 
-    res.json({ message: 'Resident updated', resident });
+    res.json({ message: 'Resident updated', resident: updated });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update resident', details: error.message });
