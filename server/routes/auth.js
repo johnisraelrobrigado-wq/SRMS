@@ -54,7 +54,7 @@ router.post('/register', validate(registerValidation), async (req, res) => {
       token
     });
   } catch (error) {
-    console.error(error);
+    console.error('Register error:', error);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
@@ -83,10 +83,10 @@ router.post('/login', validate(loginValidation), async (req, res) => {
       return;
     }
 
-    // Validate role matches user's actual role
+    // Validate role matches user's actual role (if specified)
     const requestedRole = role?.toUpperCase();
     if (requestedRole && requestedRole !== user.role) {
-      res.status(403).json({ error: `Access denied. ${requestedRole === 'ADMIN' ? 'Admin' : 'Resident'} access required.` });
+      res.status(403).json({ error: 'Access denied. Role does not match user account type.' });
       return;
     }
 
@@ -103,7 +103,7 @@ router.post('/login', validate(loginValidation), async (req, res) => {
       token
     });
   } catch (error) {
-    console.error(error);
+    console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -124,7 +124,7 @@ router.get('/me', authenticate, async (req, res) => {
 
     res.json({ user });
   } catch (error) {
-    console.error(error);
+    console.error('Me error:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
   }
 });

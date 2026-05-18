@@ -22,7 +22,12 @@ const Login = () => {
       localStorage.setItem('lastRole', role);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      const errorMsg = err.response?.data?.error || 'Login failed';
+      setError(errorMsg);
+      // Clear invalid role if it doesn't match user
+      if (errorMsg.includes('Role does not match')) {
+        localStorage.removeItem('lastRole');
+      }
     } finally {
       setLoading(false);
     }
