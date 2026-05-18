@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Resident');
+  const [role, setRole] = useState(() => localStorage.getItem('lastRole') || 'Resident');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -19,6 +19,7 @@ const Login = () => {
 
     try {
       await login(username, password, role);
+      localStorage.setItem('lastRole', role);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
