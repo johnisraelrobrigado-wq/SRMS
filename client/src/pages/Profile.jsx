@@ -108,6 +108,18 @@ const Profile = () => {
       });
   };
 
+  // ── Auto-calculate age for editingResident ─────────────────
+  useEffect(() => {
+    if (editingResident?.birthday) {
+      const birth = new Date(editingResident.birthday);
+      const today = new Date();
+      let a = today.getFullYear() - birth.getFullYear();
+      const md = today.getMonth() - birth.getMonth();
+      if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) a--;
+      setEditingResident(p => ({ ...p, age: a }));
+    }
+  }, [editingResident?.birthday]);
+
   // ── Resident update ─────────────────────────────────────────
   const openResidentEdit = () => {
     setEditingResident({ ...resForm });
