@@ -11,6 +11,7 @@ import projectRoutes from './routes/projects.js';
 import officialRoutes from './routes/officials.js';
 import sessionRoutes from './routes/sessions.js';
 import documentRoutes from './routes/documents.js';
+import archiveRoutes from './routes/archives.js';
 import activityRoutes from './routes/activity.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -43,6 +44,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/officials', officialRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/archives', archiveRoutes);
 app.use('/api/activity', activityRoutes);
 
 // Error handling

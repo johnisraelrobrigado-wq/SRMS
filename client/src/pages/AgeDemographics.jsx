@@ -13,13 +13,8 @@ const AgeDemographics = () => {
 
   const fetchDemographics = async () => {
     try {
-      // Would fetch actual grouped data from backend
-      // Mock data for now
-      setDemographics({
-        children: 45,
-        adults: 156,
-        seniors: 46
-      });
+      const response = await api.get('activity/demographics');
+      setDemographics(response.data);
     } catch (error) {
       console.error('Failed to fetch demographics:', error);
     } finally {

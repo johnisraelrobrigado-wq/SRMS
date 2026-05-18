@@ -17,11 +17,11 @@ const Layout = () => {
     { path: '/officials', icon: 'fa-users', label: 'Barangay Officials', roles: ['ADMIN', 'RESIDENT'] },
     { path: '/documents', icon: 'fa-file-alt', label: 'Document Request', roles: ['ADMIN', 'RESIDENT'] },
     { path: '/residents', icon: 'fa-user-friends', label: 'Residents', roles: ['ADMIN'] },
+    { path: '/age-demographics', icon: 'fa-chart-pie', label: 'Age Demographics', roles: ['ADMIN'] },
     { path: '/projects', icon: 'fa-folder-open', label: 'Projects', roles: ['ADMIN'] },
     { path: '/sessions', icon: 'fa-calendar-alt', label: 'Sessions', roles: ['ADMIN'] },
     { path: '/archives', icon: 'fa-archive', label: 'Archives', roles: ['ADMIN'] },
     { path: '/activity-log', icon: 'fa-chart-line', label: 'Activity Log', roles: ['ADMIN'] },
-    { path: '/age-demographics', icon: 'fa-chart-pie', label: 'Age Demographics', roles: ['ADMIN'] },
   ];
 
   const filteredMenu = menuItems.filter(item =>

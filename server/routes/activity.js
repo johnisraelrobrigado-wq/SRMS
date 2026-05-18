@@ -66,4 +66,22 @@ router.get('/dashboard', authenticate, authorize('ADMIN'), async (req, res) => {
   }
 });
 
+// GET /api/activity/demographics
+router.get('/demographics', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const residents = await prisma.resident.findMany({
+      where: { status: 'Active' },
+      select: { age: true }
+    });
+
+    const children = residents.filter(r => r.age <= 17).length;
+    const adults = residents.filter(r => r.age >= 18 && r.age <= 59).length;
+    const seniors = residents.filter(r => r.age >= 60).length;
+
+    res.json({ children, adults, seniors, total: residents.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch demographics' });
+  }
+});
+
 export default router;

@@ -52,7 +52,7 @@ const Residents = () => {
   const fetchResidents = async () => {
     try {
       const response = await api.get('residents');
-      setResidents(response.data.residents);
+      setResidents(response.data.residents || response.data);
     } catch (error) {
       console.error('Failed to fetch residents:', error);
     } finally {

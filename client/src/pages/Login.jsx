@@ -18,8 +18,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Note: backend expects role matching user's actual role; we'll pass it
-      await login(username, password);
+      await login(username, password, role);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
