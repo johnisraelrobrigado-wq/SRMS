@@ -18,8 +18,7 @@ export const validate = (validations) => {
 
 export const loginValidation = [
   body('username').notEmpty().withMessage('Username is required'),
-  body('password').notEmpty().withMessage('Password is required'),
-  body('role').optional().isIn(['ADMIN', 'RESIDENT']).withMessage('Invalid role')
+  body('password').notEmpty().withMessage('Password is required')
 ];
 
 export const registerValidation = [

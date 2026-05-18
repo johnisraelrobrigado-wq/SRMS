@@ -62,7 +62,7 @@ router.post('/register', validate(registerValidation), async (req, res) => {
 // POST /api/auth/login
 router.post('/login', validate(loginValidation), async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, password } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { username },
@@ -80,13 +80,6 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 
     if (!isPasswordValid) {
       res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
-    // Validate role matches user's actual role (if specified)
-    const requestedRole = role?.toUpperCase();
-    if (requestedRole && requestedRole !== user.role) {
-      res.status(403).json({ error: 'Access denied. Role does not match user account type.' });
       return;
     }
 
