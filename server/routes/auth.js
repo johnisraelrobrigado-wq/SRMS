@@ -31,23 +31,15 @@ router.post('/register', validate(registerValidation), async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create User and linked Resident atomically
+    // Create User account only — no resident profile is auto-created.
+    // Users and residents are decoupled: a user account is independent of the
+    // Resident model. Admins must add residents separately via the Residents page.
     const user = await prisma.user.create({
       data: {
         fullName: fullname,
         username,
         password: hashedPassword,
-        role: 'RESIDENT',
-        resident: {
-          create: {
-            full_name: fullname,
-            age: 0,
-            gender: '',
-            address: '',
-            civil_status: 'Single',
-            status: 'Active'
-          }
-        }
+        role: 'RESIDENT'
       },
       select: {
         id: true,

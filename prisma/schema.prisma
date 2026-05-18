@@ -157,4 +157,5 @@ enum RequestStatus {
   APPROVED
   REJECTED
   RELEASED
+  CANCELLED
 }

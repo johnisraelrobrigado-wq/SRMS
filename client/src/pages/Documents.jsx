@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import {
   Add, Close, ExpandMore, ExpandLess, Description,
-  Download, Delete as DeleteIcon, FileUpload, CheckCircle
+  Download, FileUpload, CheckCircle, Cancel as CancelIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -23,15 +23,13 @@ const Documents = () => {
   const [files, setFiles] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [deletingAttach, setDeletingAttach] = useState(null);
-  const [deletingAdminFile, setDeletingAdminFile] = useState(null);
   const [uploadingAdminFor, setUploadingAdminFor] = useState(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
   const [formData, setFormData] = useState({ type: '', purpose: '' });
 
-  const getStatusColor = (s) => ({ PENDING:'warning', APPROVED:'success', REJECTED:'error', RELEASED:'info' }[s] || 'default');
+  const getStatusColor = (s) => ({ PENDING:'warning', APPROVED:'success', REJECTED:'error', RELEASED:'info', CANCELLED:'default' }[s] || 'default');
   const isViewableFile = (name='') => ['png','jpg','jpeg','gif','bmp','webp','svg','pdf','txt'].includes(name.split('.').pop().toLowerCase());
   const fileLink = (p) => `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${p}`;
   const alert = (type, text) => { setError(type==='error'?text:''); setSuccess(type==='success'?text:''); if(type==='success') setTimeout(()=>setSuccess(''),3500); if(type==='error') setTimeout(()=>setError(''),4000); };
@@ -46,30 +44,29 @@ const Documents = () => {
     try { await api.put(`documents/${id}/status`, notes ? { status, notes } : { status }); alert('success','Status updated.'); fetchRequests(); }
     catch (e) { alert('error', e.response?.data?.error || 'Failed to update status'); }
   };
+  const handleCancel = async (req) => {
+    await handleStatusUpdate(req.id, 'CANCELLED');
+  };
+
+  const handleDeleteAttachment = async (requestId, attachId) => {
+    try { await api.delete(`documents/${requestId}/attachments/${attachId}`); alert('success','Attachment removed.'); }
+    catch (e) { alert('error', e.response?.data?.error || 'Failed to remove attachment'); }
+    await fetchRequests();
+  };
+  const handleAdminUpload = async (reqId, file) => {
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      await api.post(`documents/${reqId}/upload`, fd);
+      alert('success','Response file attached. Status changed to APPROVED.');
+      fetchRequests();
+      setUploadingAdminFor(null);
+    } catch (e) {
+      alert('error', e.response?.data?.error || 'Upload failed');
+      setUploadingAdminFor(null);
+    }
+  };
   const handleRejectOpen = (req) => { setRejectTarget(req); setRejectNote(''); setRejectOpen(true); };
   const handleRejectSubmit = async () => { if (!rejectTarget) return; await handleStatusUpdate(rejectTarget.id,'REJECTED',rejectNote); setRejectOpen(false); setRejectTarget(null); setRejectNote(''); };
-
-  const handleAdminUpload = async (reqId, file) => {
-    try { const fd = new FormData(); fd.append('file', file); await api.post(`documents/${reqId}/upload`, fd, { headers:{'Content-Type':'multipart/form-data'} }); alert('success','Response file attached.'); setUploadingAdminFor(null); fetchRequests(); }
-    catch (e) { alert('error', e.response?.data?.error || 'Upload failed'); }
-  };
-  const handleTriggerAdminUpload = (reqId) => {
-    const input = document.createElement('input'); input.type = 'file'; input.accept = '*/*';
-    input.onchange = (e) => { const f = e.target.files?.[0]; if (f) handleAdminUpload(reqId, f); };
-    input.click();
-  };
-  const handleDeleteAdminFile = async (req) => {
-    setDeletingAdminFile(req.id);
-    try { await api.delete(`documents/${req.id}/response-file`); alert('success','Response file removed.'); fetchRequests(); }
-    catch (e) { alert('error', e.response?.data?.error || 'Failed to remove response file'); }
-    finally { setDeletingAdminFile(null); }
-  };
-  const handleDeleteAttachment = async (requestId, attachId) => {
-    setDeletingAttach(attachId);
-    try { await api.delete(`documents/${requestId}/attachments/${attachId}`); alert('success','Attachment removed.'); fetchRequests(); }
-    catch (e) { alert('error', e.response?.data?.error || 'Failed to remove attachment'); }
-    finally { setDeletingAttach(null); }
-  };
 
   const handleOpenRequest = () => { setFormData({ type:'', purpose:'' }); setFiles([]); setOpenRequest(true); };
   const handleCloseRequest = () => { setOpenRequest(false); setFiles([]); };
@@ -78,37 +75,35 @@ const Documents = () => {
       if (!formData.type || !formData.purpose) { alert('error','Please fill in all fields.'); return; }
       const fd = new FormData(); fd.append('type', formData.type); fd.append('purpose', formData.purpose);
       files.forEach((f) => fd.append('files', f));
-      await api.post('documents', fd, { headers:{'Content-Type':'multipart/form-data'} });
+      await api.post('documents', fd);
       alert('success','Request submitted.'); handleCloseRequest(); fetchRequests();
     } catch (e) { alert('error', e.response?.data?.error || 'Failed to submit request'); }
   };
 
+  // ── Resident action buttons for a given row ──────────────────────
+  const ResidentActions = (req) => {
+    if (req.status === 'PENDING') {
+      return (
+        <Button size="small" variant="outlined" onClick={() => handleCancel(req)} startIcon={<CancelIcon fontSize="inherit" />} sx={{color:'#dc2626', borderColor:'#dc2626'}}>Cancel Request</Button>
+      );
+    }
+    return <Typography variant="body2" color="#64748b">{req.status}</Typography>;
+  };
+
   // ── Admin action buttons for a given row ──────────────────────
   const AdminActions = (req) => {
-    const pending = req.status === 'PENDING';
-    const approved = req.status === 'APPROVED';
-    const uploading = uploadingAdminFor === req.id;
-    if (pending && uploading) {
+    if (req.status === 'PENDING' || req.status === 'CANCELLED') {
       return (
         <>
           <Button size="small" variant="contained" component="label" sx={{ bgcolor:'#16a34a','&:hover':{bgcolor:'#15803d'}, mr:0.5 }}>
             Choose File
             <input type="file" hidden accept="*/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleAdminUpload(req.id, f); }} />
           </Button>
-          <Button size="small" onClick={() => setUploadingAdminFor(null)}>Cancel</Button>
-        </>
-      );
-    }
-    if (pending) {
-      return (
-        <>
-          <Button size="small" variant="outlined" onClick={() => setUploadingAdminFor(req.id)} startIcon={<FileUpload fontSize="inherit" />} sx={{ mr:0.5, color:'#16a34a', borderColor:'#16a34a' }}>Upload</Button>
-          <Button size="small" variant="outlined" onClick={() => handleStatusUpdate(req.id,'APPROVED')} sx={{ mr:0.5, color:'#16a34a', borderColor:'#16a34a' }}>Approve</Button>
           <Button size="small" variant="outlined" onClick={() => handleRejectOpen(req)} color="error">Reject</Button>
         </>
       );
     }
-    if (approved) {
+    if (req.status === 'APPROVED') {
       return <Button size="small" variant="outlined" onClick={() => handleStatusUpdate(req.id,'RELEASED')} sx={{ color:'#0369a1', borderColor:'#0369a1' }}>Mark Released</Button>;
     }
     return <Typography variant="body2" color="#64748b">{req.status}</Typography>;
@@ -116,13 +111,15 @@ const Documents = () => {
 
   const ExpandedDrawer = ({ req }) => {
     const residentFiles = (req.attachments || []).filter(a => !a.is_admin && !a.is_deleted);
-    const hasAdminFile = !!req.response_file;
+    const adminFiles    = (req.attachments || []).filter(a =>  a.is_admin && !a.is_deleted);
+    const isOwner       = !isAdmin && req.resident?.full_name === user?.full_name;
     return (
       <TableRow key={`${req.id}-drawer`}>
         <TableCell colSpan={6} sx={{p:0,border:'none'}}>
           <Collapse in timeout="auto" unmountOnExit>
             <Box sx={{mx:2,my:1,p:2,bgcolor:'#f8fafc',borderRadius:2,border:'1px solid #e2e8f0'}}>
 
+              {/* ── Resident Attachments ── */}
               <Typography variant="subtitle2" fontWeight={600} color="#1e293b" sx={{mb:1.5}}>Resident Attachments</Typography>
               {residentFiles.length === 0 ? (
                 <Typography variant="body2" color="#94a3b8">No files attached.</Typography>
@@ -135,9 +132,8 @@ const Documents = () => {
                         sx={{justifyContent:'flex-start',textTransform:'none',color:'#1e293b','&:hover':{bgcolor:'transparent',textDecoration:'underline'}}}>
                         {f.file_name}
                       </Button>
-                      {isAdmin ? (deletingAttach === f.id ? <Typography variant="caption" color="info.main">Deleting…</Typography> :
-                        <Button size="small" color="error" startIcon={<DeleteIcon fontSize="inherit" />} onClick={() => handleDeleteAttachment(req.id, f.id)} sx={{fontSize:'0.75rem'}}>Delete</Button>) :
-                        <Chip label="Resident" size="small" sx={{height:22,fontSize:'0.65rem'}} />}
+                      {isAdmin ? <Chip label="Resident" size="small" sx={{height:22,fontSize:'0.65rem'}} /> :
+                        isOwner && <Button size="small" variant="outlined" color="error" startIcon={<CancelIcon fontSize="inherit"/>} onClick={() => handleDeleteAttachment(req.id, f.id)} sx={{fontSize:'0.75rem'}}>Remove</Button>}
                     </Box>
                   ))}
                 </Box>
@@ -145,25 +141,67 @@ const Documents = () => {
 
               <Divider sx={{my:2}} />
 
+              {/* ── Admin Response File ── */}
               <Box sx={{display:'flex',alignItems:'center',justifyContent:'space-between',mb:1.5}}>
                 <Typography variant="subtitle2" fontWeight={600} color="#166534">Admin Response File</Typography>
-                {isAdmin && hasAdminFile && (deletingAdminFile === req.id ? <Typography variant="caption" color="info.main">Deleting…</Typography> :
-                  <Button size="small" color="error" startIcon={<DeleteIcon fontSize="inherit" />} onClick={() => handleDeleteAdminFile(req)} sx={{fontSize:'0.75rem'}}>Remove</Button>)}
-                {isAdmin && !hasAdminFile && <Button size="small" variant="contained" startIcon={<FileUpload fontSize="inherit" />} onClick={() => setUploadingAdminFor(req.id)} sx={{bgcolor:'#16a34a','&:hover':{bgcolor:'#15803d'}}}>Upload Response</Button>}
-                {!isAdmin && !hasAdminFile && req.status !== 'REJECTED' && <Typography variant="body2" color="#94a3b8" sx={{fontStyle:'italic'}}>Pending admin response…</Typography>}
+                {isAdmin && <>
+                  {uploadingAdminFor === req.id ? (
+                    <Button size="small" variant="contained" component="label" sx={{bgcolor:'#16a34a','&:hover':{bgcolor:'#15803d'}, mr:0.5 }}>
+                      Choose File
+                      <input type="file" hidden accept="*/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleAdminUpload(req.id, f); }} />
+                    </Button>
+                  ) : (
+                    <Button size="small" variant="contained" startIcon={<FileUpload fontSize="inherit" />} onClick={() => setUploadingAdminFor(req.id)} sx={{bgcolor:'#16a34a','&:hover':{bgcolor:'#15803d'}}}>Upload Response</Button>
+                  )}
+                </>}
+                {!isAdmin && <Typography variant="body2" color="#94a3b8" sx={{fontStyle:'italic'}}>Pending admin response…</Typography>}
               </Box>
 
-              {hasAdminFile ? (
-                <Box sx={{display:'flex',alignItems:'center',justifyContent:'space-between',px:2,py:1,borderRadius:1,bgcolor:'#f0fdf4',border:'1px solid #bbf7d0'}}>
-                  <Button size="small" component="a" href={fileLink(req.response_file)} target="_blank" rel="noopener noreferrer" startIcon={<Description fontSize="inherit" />}
-                    sx={{justifyContent:'flex-start',textTransform:'none',color:'#166534',fontWeight:600,'&:hover':{bgcolor:'transparent',textDecoration:'underline'}}}>
-                    {`response_${req.id}.${req.response_file.slice(req.response_file.lastIndexOf('.')+1)}`}
-                  </Button>
-                  {isAdmin && <Chip icon={<CheckCircle />} label="Response" size="small" sx={{bgcolor:'#dcfce7',color:'#166534',fontSize:'0.65rem'}} />}
+              {adminFiles.length > 0 ? (
+                <Box sx={{display:'flex',flexDirection:'column',gap:1}}>
+                  {adminFiles.map(f => (
+                    <Box key={f.id} sx={{display:'flex',alignItems:'center',justifyContent:'space-between',px:2,py:1,borderRadius:1,bgcolor:'#f0fdf4',border:'1px solid #bbf7d0'}}>
+                      <Button size="small" component="a" href={fileLink(f.file_path)} target="_blank" rel="noopener noreferrer" startIcon={<Description fontSize="inherit" />}
+                        sx={{justifyContent:'flex-start',textTransform:'none',color:'#166534',fontWeight:600,'&:hover':{bgcolor:'transparent',textDecoration:'underline'}}}>
+                        {f.file_name}
+                      </Button>
+                      {isAdmin && <Chip icon={<CheckCircle />} label="Response" size="small" sx={{bgcolor:'#dcfce7',color:'#166534',fontSize:'0.65rem'}} />}
+                    </Box>
+                  ))}
                 </Box>
-              ) : req.status === 'REJECTED' ? (
-                <Typography variant="body2" color="#dc2626" sx={{fontStyle:'italic'}}>Request was rejected — no response file was uploaded.</Typography>
-              ) : null}
+              ) : adminFiles.length === 0 && (
+                <Typography variant="body2" color="#94a3b8">No response file uploaded.</Typography>
+              )}
+
+              {isAdmin && (
+                <>
+                  <Divider sx={{my:2}} />
+                  <Box sx={{display:'flex',alignItems:'center',justifyContent:'space-between',mb:1.5}}>
+                    <Typography variant="subtitle2" fontWeight={600} color="#0369a1">Admin Uploads</Typography>
+                  </Box>
+                  {adminFiles.length === 0 ? (
+                    <Typography variant="body2" color="#94a3b8">No admin uploads.</Typography>
+                  ) : (
+                    <Box sx={{display:'flex',flexDirection:'column',gap:1}}>
+                      {adminFiles.map(f => (
+                        <Box key={f.id} sx={{display:'flex',alignItems:'center',justifyContent:'space-between',px:2,py:1,borderRadius:1,bgcolor:'#f0fdf4',border:'1px solid #bbf7d0'}}>
+                          <Button size="small" component="a" href={fileLink(f.file_path)} target="_blank" rel="noopener noreferrer" startIcon={<Description fontSize="inherit" />}
+                            sx={{justifyContent:'flex-start',textTransform:'none',color:'#166534',fontWeight:600,'&:hover':{bgcolor:'transparent',textDecoration:'underline'}}}>
+                            {f.file_name}
+                          </Button>
+                          <Chip icon={<CheckCircle />} label="Admin" size="small" sx={{bgcolor:'#dcfce7',color:'#166534',fontSize:'0.65rem'}} />
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </>
+              )}
+
+              {req.status === 'REJECTED' && (
+                <Box sx={{mt:2}}>
+                  <Typography variant="body2" color="#dc2626" sx={{fontStyle:'italic'}}>Request was rejected — no response file was uploaded.</Typography>
+                </Box>
+              )}
 
             </Box>
           </Collapse>
@@ -200,7 +238,6 @@ const Documents = () => {
             {requests.map((req) => {
               const isOpen = expandedRow === req.id;
               const residentFiles = (req.attachments || []).filter(a => !a.is_admin && !a.is_deleted);
-              const hasAdminFile = !!req.response_file;
               return (
                 <React.Fragment key={req.id}>
                   <TableRow key={req.id} hover>
@@ -217,7 +254,7 @@ const Documents = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Box component="span" sx={{display:'inline-flex',alignItems:'center',gap:1}}>
-                        {isAdmin ? <AdminActions req={req} /> : <Typography variant="body2" color="#64748b">{req.status}</Typography>}
+                        {isAdmin ? <AdminActions req={req} /> : <ResidentActions req={req} />}
                         <Button size="small" sx={{color:'#64748b'}} onClick={() => setExpandedRow(isOpen ? null : req.id)} title={isOpen?'Collapse':'Expand'}>
                           {isOpen ? <ExpandLess /> : <ExpandMore />}
                         </Button>

@@ -4,58 +4,44 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const hashedPassword = await bcrypt.hash('admin123', 10);
-  const residentPassword = await bcrypt.hash('sanroque', 10);
-
-  const admin = await prisma.user.upsert({
+  // Admin login account — no resident profile
+  await prisma.user.upsert({
     where: { username: 'admin' },
-    update: {},
+    update: { fullName: 'System Administrator' },
     create: {
       fullName: 'System Administrator',
       username: 'admin',
-      password: hashedPassword,
+      password: await bcrypt.hash('admin123', 10),
       role: 'ADMIN'
     }
   });
+  console.log('Created/updated admin user: admin');
 
-  console.log('Created admin user:', admin.username);
-
-const resident = await prisma.user.upsert({
+  // Resident login account — no resident profile
+  await prisma.user.upsert({
     where: { username: 'resident' },
     update: { fullName: 'Default Resident' },
     create: {
       fullName: 'Default Resident',
       username: 'resident',
-      password: residentPassword,
+      password: await bcrypt.hash('12345678', 10),
       role: 'RESIDENT'
     }
   });
+  console.log('Created/updated resident user: resident');
 
-  console.log('Created resident user:', resident.username);
-
-  // Ensure the resident user has a matching Resident profile
-  await prisma.resident.upsert({
-    where: { user_id: resident.id },
-    update: { full_name: resident.fullName },
-    create: {
-      user_id: resident.id,
-      full_name: resident.fullName,
-      age: 0,
-      gender: '',
-      address: '',
-      civil_status: 'Single',
-      status: 'Active'
+  // Delete any other stray user accounts
+  const all = await prisma.user.findMany({ select: { id: true, username: true } });
+  for (const u of all) {
+    if (u.username !== 'admin' && u.username !== 'resident') {
+      await prisma.user.delete({ where: { id: u.id } });
+      console.log('Deleted stray user:', u.username);
     }
-  });
+  }
 
-  console.log('Linked resident profile to user:', resident.username);
+  console.log('\nSeed complete.');
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

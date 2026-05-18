@@ -213,19 +213,45 @@ router.post('/:id/upload', authenticate, upload.single('file'), async (req, res)
 });
 
 // ============================================================
-// PUT /api/documents/:id/status (Admin only – update status)
+// PUT /api/documents/:id/status (Status changes)
 // ============================================================
-router.put('/:id/status', authenticate, authorize('ADMIN'), async (req, res) => {
+router.put('/:id/status', authenticate, async (req, res) => {
   try {
     const { status, notes } = req.body;
 
-    const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'RELEASED'];
+    const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'RELEASED', 'CANCELLED'];
     if (!validStatuses.includes(status)) {
       res.status(400).json({ error: 'Invalid status' });
       return;
     }
 
-    const request = await prisma.documentRequest.update({
+    const existing = await prisma.documentRequest.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: { resident: true }
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Residents can only cancel their own pending requests
+    if (req.user.role === 'RESIDENT') {
+      const resident = await prisma.resident.findFirst({
+        where: { user_id: req.user.id }
+      });
+      if (!resident || existing.resident_id !== resident.id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      if (status !== 'CANCELLED' || existing.status !== 'PENDING') {
+        return res.status(400).json({ error: 'Residents can only cancel their own pending requests' });
+      }
+    }
+
+    // Admins cannot edit requests already released or rejected
+    if (req.user.role === 'ADMIN' && (existing.status === 'RELEASED' || existing.status === 'REJECTED')) {
+      return res.status(400).json({ error: 'Cannot modify a resolved request' });
+    }
+
+    const updated = await prisma.documentRequest.update({
       where: { id: parseInt(req.params.id) },
       data: {
         status,
@@ -241,7 +267,7 @@ router.put('/:id/status', authenticate, authorize('ADMIN'), async (req, res) => 
       }
     });
 
-    res.json({ message: 'Request updated', request });
+    res.json({ message: 'Request updated', request: updated });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update request' });
@@ -345,6 +371,67 @@ router.delete('/:id/response-file', authenticate, authorize('ADMIN'), async (req
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to remove response file' });
+  }
+});
+
+// ============================================================
+// DELETE /api/documents/:id (Owner deletes own request + files)
+// ============================================================
+router.delete('/:id', authenticate, async (req, res) => {
+  try {
+    const requestId = parseInt(req.params.id);
+
+    const request = await prisma.documentRequest.findUnique({
+      where: { id: requestId },
+      include: { attachments: true }
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Only the request owner can delete
+    const resident = await prisma.resident.findFirst({
+      where: { user_id: req.user.id }
+    });
+    if (!resident || request.resident_id !== resident.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Delete attachment files from disk
+    for (const attach of request.attachments) {
+      const fileOnDisk = path.join(
+        process.cwd(),
+        attach.file_path.replace(/^\//, '')
+      );
+      if (fs.existsSync(fileOnDisk)) {
+        fs.unlinkSync(fileOnDisk);
+      }
+    }
+
+    // Delete response file from disk
+    if (request.response_file) {
+      const respFileOnDisk = path.join(
+        process.cwd(),
+        request.response_file.replace(/^\//, '')
+      );
+      if (fs.existsSync(respFileOnDisk)) {
+        fs.unlinkSync(respFileOnDisk);
+      }
+    }
+
+    // Delete attachment records and the request itself
+    await prisma.documentRequestAttachment.deleteMany({
+      where: { request_id: requestId }
+    });
+    await prisma.documentRequest.delete({
+      where: { id: requestId }
+    });
+
+    res.json({ message: 'Request deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete request' });
   }
 });
 
