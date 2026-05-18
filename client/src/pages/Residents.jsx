@@ -33,6 +33,8 @@ const Residents = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [formData, setFormData] = useState({
     full_name: '',
     birthday: '',
@@ -123,6 +125,7 @@ const Residents = () => {
 
 const handleSubmit = async () => {
     try {
+      setError('');
       const submitData = {
         full_name: formData.full_name,
         birthday: formData.birthday,
@@ -143,6 +146,7 @@ const handleSubmit = async () => {
       fetchResidents();
     } catch (error) {
       console.error('Failed to save resident:', error);
+      setError(error.response?.data?.error || 'Failed to save resident');
     }
   };
 
@@ -167,6 +171,7 @@ const handleSubmit = async () => {
 
   return (
     <Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" fontWeight={600} color="#1e293b">
           Residents Database

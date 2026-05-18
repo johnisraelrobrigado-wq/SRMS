@@ -22,7 +22,8 @@ import {
   MenuItem,
   CircularProgress,
   Chip,
-  Grid
+  Grid,
+  Alert
 } from '@mui/material';
 import { Add, Update } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +35,7 @@ const Documents = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState(null);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     type: '',
     purpose: '',
@@ -68,6 +70,7 @@ const Documents = () => {
 
   const handleSubmit = async () => {
     try {
+      setError('');
       const submitData = new FormData();
       submitData.append('type', formData.type);
       submitData.append('purpose', formData.purpose);
@@ -82,6 +85,7 @@ const Documents = () => {
       fetchRequests();
     } catch (error) {
       console.error('Failed to submit request:', error);
+      setError(error.response?.data?.error || 'Failed to submit request');
     }
   };
 
@@ -114,6 +118,7 @@ const Documents = () => {
 
   return (
     <Box>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" fontWeight={600} color="#1e293b">
           Document Requests

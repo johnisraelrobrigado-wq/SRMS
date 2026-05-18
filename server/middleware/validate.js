@@ -29,9 +29,9 @@ export const registerValidation = [
 
 export const residentValidation = [
   body('full_name').notEmpty().withMessage('Full name is required'),
-  body('age').isInt({ min: 0 }).withMessage('Age must be a positive number'),
+  body('age').isInt({ min: 0, max: 150 }).withMessage('Age must be a positive number'),
   body('gender').notEmpty().withMessage('Gender is required'),
-  body('birthday').isDate().withMessage('Valid birthday is required'),
+  body('birthday').notEmpty().withMessage('Birthday is required'),
   body('address').notEmpty().withMessage('Address is required'),
   body('civil_status').notEmpty().withMessage('Civil status is required')
 ];

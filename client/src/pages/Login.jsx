@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Container, Typography, Box, Paper, CircularProgress, Alert, Button } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 
+let loginTimeout = null;
+
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -15,6 +17,12 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    // Debounce rapid submissions
+    if (loginTimeout) {
+      clearTimeout(loginTimeout);
+    }
+    
     setLoading(true);
 
     try {

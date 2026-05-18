@@ -1,12 +1,10 @@
 import jwt from 'jsonwebtoken';
-import { asyncHandler } from './asyncHandler.js';
 
-export const authenticate = asyncHandler(async (req, res, next) => {
+export const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Authentication required' });
-    return;
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
   const token = authHeader.substring(7);
@@ -16,19 +14,17 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    return res.status(401).json({ error: 'Invalid token' });
   }
-});
+};
 
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
+      return res.status(401).json({ error: 'Authentication required' });
     }
     if (!roles.includes(req.user.role)) {
-      res.status(403).json({ error: 'Insufficient permissions' });
-      return;
+      return res.status(403).json({ error: 'Insufficient permissions' });
     }
     next();
   };

@@ -92,6 +92,9 @@ router.get('/:id', authenticate, async (req, res) => {
 // POST /api/documents (create request) - Resident can create, Admin can create for anyone
 router.post('/', authenticate, upload.single('file'), async (req, res) => {
   try {
+    console.log('Documents POST body:', req.body);
+    console.log('Documents POST file:', req.file);
+    
     const { type, purpose } = req.body;
     const filePath = req.file ? `/uploads/documents/${req.file.filename}` : null;
 
@@ -106,10 +109,13 @@ router.post('/', authenticate, upload.single('file'), async (req, res) => {
         where: { user_id: req.user.id }
       });
       if (!resident) {
-        res.status(400).json({ error: 'No resident profile linked to this account' });
-        return;
+        return res.status(400).json({ error: 'No resident profile linked to this account' });
       }
       residentId = resident.id;
+    }
+
+    if (!type || !purpose) {
+      return res.status(400).json({ error: 'Type and purpose are required' });
     }
 
     const request = await prisma.documentRequest.create({
@@ -124,8 +130,8 @@ router.post('/', authenticate, upload.single('file'), async (req, res) => {
 
     res.status(201).json({ message: 'Request submitted', request });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to create request' });
+    console.error('Create document error:', error);
+    res.status(500).json({ error: 'Failed to create request', details: error.message });
   }
 });
 

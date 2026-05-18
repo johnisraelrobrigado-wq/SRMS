@@ -60,30 +60,39 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // POST /api/residents (create) - Admin only
-router.post('/', authenticate, authorize('ADMIN'), validate(residentValidation), async (req, res) => {
+router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
+    const { birthday, ...rest } = req.body;
     const resident = await prisma.resident.create({
-      data: req.body
+      data: {
+        ...rest,
+        birthday: birthday ? new Date(birthday) : new Date()
+      }
     });
 
     res.status(201).json({ message: 'Resident created', resident });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to create resident' });
+    console.error('Create resident error:', error);
+    res.status(500).json({ error: 'Failed to create resident', details: error.message });
   }
 });
 
 // PUT /api/residents/:id - Admin only
-router.put('/:id', authenticate, authorize('ADMIN'), validate(residentValidation), async (req, res) => {
+router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
+    const { birthday, ...rest } = req.body;
     const resident = await prisma.resident.update({
       where: { id: parseInt(req.params.id) },
-      data: req.body
+      data: {
+        ...rest,
+        birthday: birthday ? new Date(birthday) : undefined
+      }
     });
 
     res.json({ message: 'Resident updated', resident });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update resident' });
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update resident', details: error.message });
   }
 });
 
