@@ -22,7 +22,8 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
-  Chip
+  Chip,
+  Grid
 } from '@mui/material';
 import { Add, Edit, Delete } from '@mui/icons-material';
 import api from '../services/api';
@@ -34,16 +35,29 @@ const Residents = () => {
   const [editing, setEditing] = useState(null);
   const [formData, setFormData] = useState({
     full_name: '',
-    age: '',
+    birthday: '',
+    age: 0,
     gender: '',
-    birthdate: '',
     address: '',
-    purok: '',
     contact: '',
     occupation: '',
     civil_status: '',
     status: 'Active'
   });
+
+  // Auto-calculate age from birthday
+  useEffect(() => {
+    if (formData.birthday) {
+      const birth = new Date(formData.birthday);
+      const today = new Date();
+      let calculatedAge = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        calculatedAge--;
+      }
+      setFormData(prev => ({ ...prev, age: calculatedAge }));
+    }
+  }, [formData.birthday]);
 
   useEffect(() => {
     fetchResidents();
@@ -63,13 +77,23 @@ const Residents = () => {
   const handleOpen = (resident = null) => {
     if (resident) {
       setEditing(resident);
+      const birth = resident.birthday?.split('T')[0] || resident.birthdate?.split('T')[0] || '';
+      const today = new Date();
+      const birthDate = new Date(birth);
+      let age = 0;
+      if (birth) {
+        age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      }
       setFormData({
         full_name: resident.full_name,
-        age: resident.age,
+        age: age,
         gender: resident.gender,
-        birthdate: resident.birthdate?.split('T')[0],
+        birthday: birth,
         address: resident.address,
-        purok: resident.purok,
         contact: resident.contact || '',
         occupation: resident.occupation || '',
         civil_status: resident.civil_status,
@@ -79,11 +103,10 @@ const Residents = () => {
       setEditing(null);
       setFormData({
         full_name: '',
-        age: '',
+        age: 0,
         gender: '',
-        birthdate: '',
+        birthday: '',
         address: '',
-        purok: '',
         contact: '',
         occupation: '',
         civil_status: '',
@@ -98,23 +121,30 @@ const Residents = () => {
     setEditing(null);
   };
 
-   const handleSubmit = async () => {
-     try {
-       const submitData = {
-         ...formData,
-         age: parseInt(formData.age, 10) || 0
-       };
-       if (editing) {
-         await api.put(`residents/${editing.id}`, submitData);
-       } else {
-         await api.post('residents', submitData);
-       }
-       handleClose();
-       fetchResidents();
-     } catch (error) {
-       console.error('Failed to save resident:', error);
-     }
-   };
+const handleSubmit = async () => {
+    try {
+      const submitData = {
+        full_name: formData.full_name,
+        birthday: formData.birthday,
+        age: formData.age,
+        gender: formData.gender,
+        address: formData.address,
+        contact: formData.contact,
+        occupation: formData.occupation,
+        civil_status: formData.civil_status,
+        status: formData.status
+      };
+      if (editing) {
+        await api.put(`residents/${editing.id}`, submitData);
+      } else {
+        await api.post('residents', submitData);
+      }
+      handleClose();
+      fetchResidents();
+    } catch (error) {
+      console.error('Failed to save resident:', error);
+    }
+  };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this resident?')) {
@@ -159,7 +189,6 @@ const Residents = () => {
               <TableCell>Age</TableCell>
               <TableCell>Gender</TableCell>
               <TableCell>Address</TableCell>
-              <TableCell>Purok</TableCell>
               <TableCell>Contact</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
@@ -172,7 +201,6 @@ const Residents = () => {
                 <TableCell>{resident.age}</TableCell>
                 <TableCell>{resident.gender}</TableCell>
                 <TableCell>{resident.address}</TableCell>
-                <TableCell>{resident.purok}</TableCell>
                 <TableCell>{resident.contact || '-'}</TableCell>
                 <TableCell>
                   <Chip
@@ -206,13 +234,27 @@ const Residents = () => {
               value={formData.full_name}
               onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
             />
-            <TextField
-              label="Age"
-              type="number"
-              fullWidth
-              value={formData.age}
-              onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  label="Birthday"
+                  type="date"
+                  fullWidth
+                  value={formData.birthday}
+                  onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  label="Age"
+                  type="number"
+                  fullWidth
+                  value={formData.age}
+                  InputProps={{ readOnly: true }}
+                />
+              </Grid>
+            </Grid>
             <FormControl fullWidth>
               <InputLabel>Gender</InputLabel>
               <Select
@@ -226,24 +268,10 @@ const Residents = () => {
               </Select>
             </FormControl>
             <TextField
-              label="Birthdate"
-              type="date"
-              fullWidth
-              value={formData.birthdate}
-              onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
               label="Address"
               fullWidth
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            />
-            <TextField
-              label="Purok"
-              fullWidth
-              value={formData.purok}
-              onChange={(e) => setFormData({ ...formData, purok: e.target.value })}
             />
             <TextField
               label="Contact"

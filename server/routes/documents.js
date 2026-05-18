@@ -1,8 +1,28 @@
 import express from 'express';
 import prisma from '../prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
+
+const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage });
 
 // GET /api/documents (list requests)
 router.get('/', authenticate, async (req, res) => {
@@ -23,11 +43,11 @@ router.get('/', authenticate, async (req, res) => {
       }
     }
 
-    const requests = await prisma.documentRequest.findMany({
+const requests = await prisma.documentRequest.findMany({
       where,
       include: {
         resident: {
-          select: { full_name: true, address: true, purok: true }
+          select: { full_name: true, address: true }
         }
       },
       orderBy: { created_at: 'desc' }
@@ -70,19 +90,18 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // POST /api/documents (create request) - Resident can create, Admin can create for anyone
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, upload.single('file'), async (req, res) => {
   try {
     const { type, purpose } = req.body;
+    const filePath = req.file ? `/uploads/documents/${req.file.filename}` : null;
 
     let residentId;
 
     if (req.user.role === 'ADMIN') {
-      // Admin can specify resident_id or use their own linked resident
       residentId = req.body.resident_id || (await prisma.resident.findFirst({
         where: { user_id: req.user.id }
       }))?.id;
     } else {
-      // Resident uses their linked resident account
       const resident = await prisma.resident.findFirst({
         where: { user_id: req.user.id }
       });
@@ -97,7 +116,8 @@ router.post('/', authenticate, async (req, res) => {
       data: {
         resident_id: residentId,
         type,
-        purpose
+        purpose,
+        file_path: filePath
       },
       include: { resident: true }
     });

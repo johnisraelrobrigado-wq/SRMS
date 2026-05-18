@@ -29,9 +29,8 @@ model Resident {
   full_name   String
   age         Int
   gender      String
-  birthdate   DateTime
+  birthday    DateTime
   address     String
-  purok       String
   contact     String?
   occupation  String?
   civil_status String
@@ -90,6 +89,7 @@ model DocumentRequest {
   resident    Resident @relation(fields: [resident_id], references: [id])
   type        String
   purpose     String
+  file_path   String?
   request_date DateTime @default(now())
   status      RequestStatus @default(PENDING)
   processed_by Int?

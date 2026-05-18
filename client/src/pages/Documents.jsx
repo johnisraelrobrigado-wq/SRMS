@@ -33,9 +33,11 @@ const Documents = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [file, setFile] = useState(null);
   const [formData, setFormData] = useState({
     type: '',
-    purpose: ''
+    purpose: '',
+    file_path: ''
   });
 
   useEffect(() => {
@@ -55,16 +57,27 @@ const Documents = () => {
 
   const handleOpen = () => {
     setFormData({ type: '', purpose: '' });
+    setFile(null);
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
+    setFile(null);
   };
 
   const handleSubmit = async () => {
     try {
-      await api.post('documents', formData);
+      const submitData = new FormData();
+      submitData.append('type', formData.type);
+      submitData.append('purpose', formData.purpose);
+      if (file) {
+        submitData.append('file', file);
+      }
+
+      await api.post('documents', submitData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       handleClose();
       fetchRequests();
     } catch (error) {
@@ -124,6 +137,7 @@ const Documents = () => {
               <TableCell>Resident</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Attachment</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -140,6 +154,18 @@ const Documents = () => {
                     size="small"
                     color={getStatusColor(request.status)}
                   />
+                </TableCell>
+                <TableCell>
+                  {request.file_path ? (
+                    <Button
+                      size="small"
+                      href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/${request.file_path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View File
+                    </Button>
+                  ) : '-'}
                 </TableCell>
                 <TableCell>
                   {user?.role === 'ADMIN' ? (
@@ -208,6 +234,18 @@ const Documents = () => {
               multiline
               rows={3}
             />
+            <Button
+              variant="outlined"
+              component="label"
+              sx={{ textAlign: 'left', justifyContent: 'flex-start' }}
+            >
+              {file ? file.name : 'Attach File (optional)'}
+              <input
+                type="file"
+                hidden
+                onChange={(e) => setFile(e.target.files[0])}
+              />
+            </Button>
           </Box>
         </DialogContent>
         <DialogActions>

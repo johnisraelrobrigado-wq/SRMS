@@ -12,7 +12,7 @@ router.get('/', authenticate, async (req, res) => {
     const offset = (page - 1) * limit;
 
     const where = search
-      ? { OR: [{ full_name: { contains: search, mode: 'insensitive' } }, { purok: { contains: search, mode: 'insensitive' } }] }
+      ? { OR: [{ full_name: { contains: search, mode: 'insensitive' } }, { address: { contains: search, mode: 'insensitive' } }] }
       : {};
 
     const [residents, total] = await Promise.all([
