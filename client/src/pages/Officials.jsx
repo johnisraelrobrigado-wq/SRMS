@@ -153,7 +153,7 @@ const Officials = () => {
           </TableHead>
           <TableBody>
             {officials.map((official) => (
-              <TableRow key={official.id} hover>
+              <TableRow key={official.id} hover sx={{ opacity: official.is_active ? 1 : 0.55 }}>
                 <TableCell>{official.name}</TableCell>
                 <TableCell>{official.position}</TableCell>
                 <TableCell>{official.contact || '-'}</TableCell>

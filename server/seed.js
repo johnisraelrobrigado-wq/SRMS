@@ -32,6 +32,23 @@ const resident = await prisma.user.upsert({
   });
 
   console.log('Created resident user:', resident.username);
+
+  // Ensure the resident user has a matching Resident profile
+  await prisma.resident.upsert({
+    where: { user_id: resident.id },
+    update: { full_name: resident.fullName },
+    create: {
+      user_id: resident.id,
+      full_name: resident.fullName,
+      age: 0,
+      gender: '',
+      address: '',
+      civil_status: 'Single',
+      status: 'Active'
+    }
+  });
+
+  console.log('Linked resident profile to user:', resident.username);
 }
 
 main()

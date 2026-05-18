@@ -82,21 +82,37 @@ model Session {
 }
 
 model DocumentRequest {
-  id           Int           @id @default(autoincrement())
-  resident_id  Int
-  type         String
-  purpose      String
-  request_date DateTime      @default(now())
-  status       RequestStatus @default(PENDING)
-  processed_by Int?
-  processed_at DateTime?
-  notes        String?
-  created_at   DateTime      @default(now())
-  file_path    String?
-  resident     Resident      @relation(fields: [resident_id], references: [id])
+  id             Int           @id @default(autoincrement())
+  resident_id    Int
+  type           String
+  purpose        String
+  request_date   DateTime      @default(now())
+  status         RequestStatus @default(PENDING)
+  processed_by   Int?
+  processed_at   DateTime?
+  notes          String?
+  created_at     DateTime      @default(now())
+  file_path      String?
+  response_file  String?
+  resident       Resident      @relation(fields: [resident_id], references: [id])
+  attachments    DocumentRequestAttachment[]
 
   @@index([resident_id], map: "document_requests_resident_id_fkey")
   @@map("document_requests")
+}
+
+model DocumentRequestAttachment {
+  id          Int            @id @default(autoincrement())
+  request_id  Int
+  file_path   String
+  file_name   String
+  is_admin    Boolean        @default(false)
+  is_deleted  Boolean        @default(false)
+  created_at  DateTime       @default(now())
+  request     DocumentRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
+
+  @@index([request_id], map: "document_request_attachments_request_id_fkey")
+  @@map("document_request_attachments")
 }
 
 model ActivityLog {

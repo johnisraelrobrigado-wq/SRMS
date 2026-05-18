@@ -31,18 +31,32 @@ router.post('/register', validate(registerValidation), async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Create User and linked Resident atomically
     const user = await prisma.user.create({
       data: {
         fullName: fullname,
         username,
         password: hashedPassword,
-        role: 'RESIDENT'
+        role: 'RESIDENT',
+        resident: {
+          create: {
+            full_name: fullname,
+            age: 0,
+            gender: '',
+            address: '',
+            civil_status: 'Single',
+            status: 'Active'
+          }
+        }
       },
       select: {
         id: true,
         username: true,
         fullName: true,
-        role: true
+        role: true,
+        resident: {
+          select: { id: true, full_name: true, age: true, gender: true, address: true }
+        }
       }
     });
 
@@ -50,7 +64,13 @@ router.post('/register', validate(registerValidation), async (req, res) => {
 
     res.status(201).json({
       message: 'Registration successful',
-      user,
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role,
+        resident: user.resident
+      },
       token
     });
   } catch (error) {
@@ -117,7 +137,9 @@ router.get('/me', authenticate, async (req, res) => {
         username: true,
         fullName: true,
         role: true,
-        resident: true
+        resident: {
+          select: { id: true, full_name: true, age: true, gender: true, address: true }
+        }
       }
     });
 

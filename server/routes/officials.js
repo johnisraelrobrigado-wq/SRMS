@@ -8,7 +8,6 @@ const router = express.Router();
 router.get('/', authenticate, async (req, res) => {
   try {
     const officials = await prisma.official.findMany({
-      where: { is_active: true },
       orderBy: { created_at: 'desc' }
     });
 
@@ -62,13 +61,23 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
 // PUT /api/officials/:id (Admin only)
 router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
+    const { name, position, contact, term_start, term_end, is_active } = req.body;
+
     const official = await prisma.official.update({
       where: { id: parseInt(req.params.id) },
-      data: req.body
+      data: {
+        name,
+        position,
+        contact,
+        term_start: term_start ? new Date(term_start) : undefined,
+        term_end: term_end ? new Date(term_end) : undefined,
+        is_active
+      }
     });
 
     res.json({ message: 'Official updated', official });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to update official' });
   }
 });
@@ -76,14 +85,14 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
 // DELETE /api/officials/:id (Admin only)
 router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    await prisma.official.update({
-      where: { id: parseInt(req.params.id) },
-      data: { is_active: false }
+    await prisma.official.delete({
+      where: { id: parseInt(req.params.id) }
     });
 
-    res.json({ message: 'Official deactivated' });
+    res.json({ message: 'Official permanently removed' });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete official' });
+    console.error(error);
+    res.status(500).json({ error: 'Failed to remove official' });
   }
 });
 
