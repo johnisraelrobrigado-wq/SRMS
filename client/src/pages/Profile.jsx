@@ -36,7 +36,7 @@ const Profile = () => {
 
   const fetchData = async () => {
     try {
-      const { data } = await api.get('users/me');
+      const { data } = await api.get('auth/me');
       const u = data.user;
       setAccForm(prev => ({
         ...prev,
