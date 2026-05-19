@@ -42,7 +42,7 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
 router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     await prisma.archive.delete({
-      where: { id: parseInt(req.params.id) }
+      where: { archive_id: parseInt(req.params.id) }
     });
 
     res.json({ message: 'Archive deleted' });

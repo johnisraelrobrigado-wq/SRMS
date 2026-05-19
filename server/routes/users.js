@@ -22,13 +22,13 @@ const upload = multer({ storage });
 // GET /api/users/me (own profile – any authenticated user)
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: {
-        id: true, username: true, fullName: true,
-        role: true, email: true, profilePicture: true, created_at: true
-      }
-    });
+     const user = await prisma.user.findUnique({
+       where: { user_id: req.user.id },
+       select: {
+         user_id: true, username: true, fullName: true,
+         role: true, email: true, profilePicture: true, created_at: true
+       }
+     });
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ user });
   } catch (error) {
@@ -43,18 +43,18 @@ router.put('/profile', authenticate, async (req, res) => {
     const { fullName, email, password, profilePicture } = req.body;
 
     const data = {};
-    if (fullName !== undefined)   data.fullName = fullName;
-    if (email !== undefined)      data.email = email;
-    if (profilePicture !== undefined)   data.profilePicture = profilePicture;
+    if (fullName !== undefined)        data.fullName = fullName;
+    if (email !== undefined)           data.email = email;
+    if (profilePicture !== undefined)  data.profilePicture = profilePicture;
     if (password !== undefined && password.trim() !== '') {
       data.password = await bcryptjs.hash(password, 10);
     }
 
     const updated = await prisma.user.update({
-      where: { id: req.user.id },
+      where: { user_id: req.user.id },
       data,
       select: {
-        id: true, username: true, fullName: true,
+        user_id: true, username: true, fullName: true,
         role: true, email: true, profilePicture: true, created_at: true
       }
     });
@@ -74,10 +74,10 @@ router.post('/profile/picture', authenticate, upload.single('picture'), async (r
     const pictureUrl = `/uploads/profiles/${req.file.filename}`;
 
     const updated = await prisma.user.update({
-      where: { id: req.user.id },
+      where: { user_id: req.user.id },
       data: { profilePicture: pictureUrl },
       select: {
-        id: true, username: true, fullName: true,
+        user_id: true, username: true, fullName: true,
         role: true, email: true, profilePicture: true, created_at: true
       }
     });
@@ -96,7 +96,7 @@ router.get('/', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       select: {
-        id: true,
+        user_id: true,
         username: true,
         fullName: true,
         role: true,
@@ -116,9 +116,9 @@ router.get('/', authenticate, authorize('ADMIN'), async (req, res) => {
 router.get('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { user_id: parseInt(req.params.id) },
       select: {
-        id: true,
+        user_id: true,
         username: true,
         fullName: true,
         role: true,

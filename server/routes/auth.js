@@ -9,7 +9,7 @@ const router = express.Router();
 
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    { id: user.user_id, username: user.username, role: user.role },
     process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     { expiresIn: '7d' }
   );
@@ -42,12 +42,12 @@ router.post('/register', validate(registerValidation), async (req, res) => {
         role: 'RESIDENT'
       },
       select: {
-        id: true,
+        user_id: true,
         username: true,
         fullName: true,
         role: true,
         resident: {
-          select: { id: true, full_name: true, age: true, gender: true, address: true }
+          select: { resident_id: true, full_name: true, age: true, gender: true, address: true }
         }
       }
     });
@@ -57,7 +57,7 @@ router.post('/register', validate(registerValidation), async (req, res) => {
     res.status(201).json({
       message: 'Registration successful',
       user: {
-        id: user.id,
+        user_id: user.user_id,
         username: user.username,
         fullName: user.fullName,
         role: user.role,
@@ -106,7 +106,7 @@ router.post('/login', validate(loginValidation), async (req, res) => {
     res.json({
       message: 'Login successful',
       user: {
-        id: user.id,
+        id: user.user_id,
         username: user.username,
         fullName: user.fullName,
         role: user.role
@@ -123,21 +123,17 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+      where: { user_id: req.user.id },
       select: {
-        id: true,
+        user_id: true,
         username: true,
         fullName: true,
         role: true,
         email: true,
         profilePicture: true,
         resident: {
-          select: {
-            id: true, full_name: true,
-            birthday: true, age: true,
-            gender: true, address: true,
-            contact: true, occupation: true, civil_status: true
-          }
+          select: { resident_id: true, full_name: true, birthday: true, age: true,
+            gender: true, address: true, contact: true, occupation: true, civil_status: true }
         }
       }
     });

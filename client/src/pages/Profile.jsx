@@ -277,9 +277,19 @@ const Profile = () => {
                   </Button>
                 </Box>
               ) : (
-                <Typography variant="body2" color="#64748b">
-                  No resident profile linked to this account.
-                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Typography variant="body2" color="#64748b">
+                    No resident profile linked to this account.
+                  </Typography>
+                  <Button
+                    size="small" variant="outlined"
+                    startIcon={<Save />}
+                    onClick={openResidentEdit}
+                    sx={{ alignSelf: 'flex-start', color: '#16a34a', borderColor: '#16a34a' }}
+                  >
+                    Create Resident Profile
+                  </Button>
+                </Box>
               )}
             </Paper>
           </Grid>
@@ -308,7 +318,7 @@ const Profile = () => {
                 <Button
                   size="small" variant="outlined"
                   startIcon={<Save />}
-                  onClick={() => { setEditOpen(true); }}
+                  onClick={() => { setAccForm(p => ({ ...p, fullName: user?.fullName || '', email: user?.email || '' })); setEditOpen(true); }}
                   sx={{ alignSelf: 'flex-start', color: '#1e293b', borderColor: '#1e293b' }}
                 >
                   Edit Account

@@ -45,7 +45,7 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const resident = await prisma.resident.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { resident_id: parseInt(req.params.id) }
     });
 
     if (!resident) {
@@ -102,7 +102,7 @@ router.put('/:id', authenticate, async (req, res) => {
   try {
     const { birthday, ...rest } = req.body;
     const existing = await prisma.resident.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { resident_id: parseInt(req.params.id) }
     });
 
     if (!existing) {
@@ -117,7 +117,7 @@ router.put('/:id', authenticate, async (req, res) => {
     }
 
     const updated = await prisma.resident.update({
-      where: { id: parseInt(req.params.id) },
+      where: { resident_id: parseInt(req.params.id) },
       data: {
         ...rest,
         birthday: birthday ? new Date(birthday) : undefined
@@ -135,7 +135,7 @@ router.put('/:id', authenticate, async (req, res) => {
 router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     await prisma.resident.delete({
-      where: { id: parseInt(req.params.id) }
+      where: { resident_id: parseInt(req.params.id) }
     });
 
     res.json({ message: 'Resident deleted' });

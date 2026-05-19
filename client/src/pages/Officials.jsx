@@ -90,7 +90,7 @@ const Officials = () => {
   const handleSubmit = async () => {
     try {
       if (editing) {
-        await api.put(`officials/${editing.id}`, formData);
+        await api.put(`officials/${editing.official_id}`, formData);
       } else {
         await api.post('officials', formData);
       }
@@ -172,7 +172,7 @@ const Officials = () => {
                       <IconButton size="small" onClick={() => handleOpen(official)}>
                         <Edit fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" onClick={() => handleDelete(official.id)} color="error">
+                      <IconButton size="small" onClick={() => handleDelete(official.official_id)} color="error">
                         <Delete fontSize="small" />
                       </IconButton>
                     </>

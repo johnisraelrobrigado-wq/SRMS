@@ -138,7 +138,7 @@ const handleSubmit = async () => {
         status: formData.status
       };
       if (editing) {
-        await api.put(`residents/${editing.id}`, submitData);
+        await api.put(`residents/${editing.resident_id}`, submitData);
       } else {
         await api.post('residents', submitData);
       }
@@ -201,7 +201,7 @@ const handleSubmit = async () => {
           </TableHead>
           <TableBody>
             {residents.map((resident) => (
-              <TableRow key={resident.id} hover>
+              <TableRow key={resident.resident_id} hover>
                 <TableCell>{resident.full_name}</TableCell>
                 <TableCell>{resident.age}</TableCell>
                 <TableCell>{resident.gender}</TableCell>
@@ -218,7 +218,7 @@ const handleSubmit = async () => {
                   <IconButton size="small" onClick={() => handleOpen(resident)}>
                     <Edit fontSize="small" />
                   </IconButton>
-                  <IconButton size="small" onClick={() => handleDelete(resident.id)} color="error">
+                  <IconButton size="small" onClick={() => handleDelete(resident.resident_id)} color="error">
                     <Delete fontSize="small" />
                   </IconButton>
                 </TableCell>

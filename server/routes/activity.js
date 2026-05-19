@@ -84,4 +84,24 @@ router.get('/demographics', authenticate, authorize('ADMIN'), async (req, res) =
   }
 });
 
+// GET /api/activity/gender-demographics
+router.get('/gender-demographics', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const residents = await prisma.resident.findMany({
+      where: { status: 'Active' },
+      select: { gender: true }
+    });
+
+    const counts = {};
+    for (const r of residents) {
+      const key = (r.gender || 'Unspecified').trim() || 'Unspecified';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+
+    res.json(counts);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch gender demographics' });
+  }
+});
+
 export default router;

@@ -13,7 +13,7 @@ import Documents from './pages/Documents';
 import Profile from './pages/Profile';
 import Archives from './pages/Archives';
 import ActivityLog from './pages/ActivityLog';
-import AgeDemographics from './pages/AgeDemographics';
+import Demographics from './pages/Demographics';
 
 function PrivateRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -86,10 +86,10 @@ function App() {
               }
             />
             <Route
-              path="age-demographics"
+              path="demographics"
               element={
                 <PrivateRoute adminOnly>
-                  <AgeDemographics />
+                  <Demographics />
                 </PrivateRoute>
               }
             />

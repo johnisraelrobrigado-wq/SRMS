@@ -30,11 +30,11 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/sessions/:id
-router.get('/:id', authenticate, async (req, res) => {
+// GET /api/sessions/:session_id
+router.get('/:session_id', authenticate, async (req, res) => {
   try {
     const session = await prisma.session.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { session_id: parseInt(req.params.session_id) }
     });
 
     if (!session) {
@@ -71,11 +71,11 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
   }
 });
 
-// PUT /api/sessions/:id (Admin only)
-router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+// PUT /api/sessions/:session_id (Admin only)
+router.put('/:session_id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const session = await prisma.session.update({
-      where: { id: parseInt(req.params.id) },
+      where: { session_id: parseInt(req.params.session_id) },
       data: {
         ...req.body,
         date: req.body.date ? new Date(req.body.date) : undefined
@@ -88,11 +88,11 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   }
 });
 
-// DELETE /api/sessions/:id (Admin only)
-router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+// DELETE /api/sessions/:session_id (Admin only)
+router.delete('/:session_id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     await prisma.session.delete({
-      where: { id: parseInt(req.params.id) }
+      where: { session_id: parseInt(req.params.session_id) }
     });
 
     res.json({ message: 'Session deleted' });

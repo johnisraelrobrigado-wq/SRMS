@@ -18,11 +18,11 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/projects/:id
-router.get('/:id', authenticate, async (req, res) => {
+// GET /api/projects/:project_id
+router.get('/:project_id', authenticate, async (req, res) => {
   try {
     const project = await prisma.project.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { project_id: parseInt(req.params.project_id) }
     });
 
     if (!project) {
@@ -49,11 +49,11 @@ router.post('/', authenticate, authorize('ADMIN'), validate(projectValidation), 
   }
 });
 
-// PUT /api/projects/:id (Admin only)
-router.put('/:id', authenticate, authorize('ADMIN'), validate(projectValidation), async (req, res) => {
+// PUT /api/projects/:project_id (Admin only)
+router.put('/:project_id', authenticate, authorize('ADMIN'), validate(projectValidation), async (req, res) => {
   try {
     const project = await prisma.project.update({
-      where: { id: parseInt(req.params.id) },
+      where: { project_id: parseInt(req.params.project_id) },
       data: req.body
     });
 
@@ -63,11 +63,11 @@ router.put('/:id', authenticate, authorize('ADMIN'), validate(projectValidation)
   }
 });
 
-// DELETE /api/projects/:id (Admin only)
-router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+// DELETE /api/projects/:project_id (Admin only)
+router.delete('/:project_id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     await prisma.project.delete({
-      where: { id: parseInt(req.params.id) }
+      where: { project_id: parseInt(req.params.project_id) }
     });
 
     res.json({ message: 'Project deleted' });

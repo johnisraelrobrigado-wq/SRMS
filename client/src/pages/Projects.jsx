@@ -24,9 +24,12 @@ import {
   Chip
 } from '@mui/material';
 import { Add, Edit, Delete } from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 const Projects = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -87,13 +90,16 @@ const Projects = () => {
 
   const handleSubmit = async () => {
     try {
+      if (!isAdmin) return;
       const submitData = {
         ...formData,
-        budget: formData.budget ? parseFloat(formData.budget) : null
+        budget: formData.budget ? parseFloat(formData.budget) : null,
+        start_date: formData.start_date ? `${formData.start_date}T00:00:00.000Z` : null,
+        end_date:   formData.end_date   ? `${formData.end_date}T00:00:00.000Z`   : null,
       };
 
       if (editing) {
-        await api.put(`projects/${editing.id}`, submitData);
+        await api.put(`projects/${editing.project_id}`, submitData);
       } else {
         await api.post('projects', submitData);
       }
@@ -105,13 +111,13 @@ const Projects = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this project?')) {
-      try {
-        await api.delete(`projects/${id}`);
-        fetchProjects();
-      } catch (error) {
-        console.error('Failed to delete project:', error);
-      }
+    if (!isAdmin) return;
+    if (!window.confirm('Are you sure you want to delete this project?')) return;
+    try {
+      await api.delete(`projects/${id}`);
+      fetchProjects();
+    } catch (error) {
+      console.error('Failed to delete project:', error);
     }
   };
 
@@ -139,20 +145,22 @@ const Projects = () => {
         <Typography variant="h4" fontWeight={600} color="#1e293b">
           Community Projects
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpen()}
-          sx={{ bgcolor: '#1e293b', '&:hover': { bgcolor: '#334155' } }}
-        >
-          Create Project
-        </Button>
+        {isAdmin && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => handleOpen()}
+            sx={{ bgcolor: '#1e293b', '&:hover': { bgcolor: '#334155' } }}
+          >
+            Create Project
+          </Button>
+        )}
       </Box>
 
       <Box>
         {projects.map((project) => (
           <Paper
-            key={project.id}
+              key={project.project_id}
             sx={{
               p: 3,
               mb: 2,
@@ -181,12 +189,16 @@ const Projects = () => {
                   size="small"
                   color={getStatusColor(project.status)}
                 />
-                <IconButton size="small" onClick={() => handleOpen(project)}>
-                  <Edit fontSize="small" />
-                </IconButton>
-                <IconButton size="small" onClick={() => handleDelete(project.id)} color="error">
-                  <Delete fontSize="small" />
-                </IconButton>
+                {isAdmin && (
+                  <>
+                    <IconButton size="small" onClick={() => handleOpen(project)}>
+                      <Edit fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => handleDelete(project.project_id)} color="error">
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </>
+                )}
               </Box>
             </Box>
           </Paper>
@@ -226,7 +238,7 @@ const Projects = () => {
               </Select>
             </FormControl>
             <TextField
-              label="Budget"
+              label="Budget (₱)"
               type="number"
               fullWidth
               value={formData.budget}

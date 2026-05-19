@@ -25,9 +25,12 @@ import {
   Grid
 } from '@mui/material';
 import { Add, Edit, Delete } from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 const Sessions = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -88,8 +91,9 @@ const Sessions = () => {
 
   const handleSubmit = async () => {
     try {
+      if (!isAdmin) return;
       if (editing) {
-        await api.put(`sessions/${editing.id}`, formData);
+        await api.put(`sessions/${editing.session_id}`, formData);
       } else {
         await api.post('sessions', formData);
       }
@@ -101,13 +105,13 @@ const Sessions = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this session?')) {
-      try {
-        await api.delete(`sessions/${id}`);
-        fetchSessions();
-      } catch (error) {
-        console.error('Failed to delete session:', error);
-      }
+    if (!isAdmin) return;
+    if (!window.confirm('Are you sure you want to delete this session?')) return;
+    try {
+      await api.delete(`sessions/${id}`);
+      fetchSessions();
+    } catch (error) {
+      console.error('Failed to delete session:', error);
     }
   };
 
@@ -125,19 +129,21 @@ const Sessions = () => {
         <Typography variant="h4" fontWeight={600} color="#1e293b">
           Barangay Sessions
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpen()}
-          sx={{ bgcolor: '#1e293b', '&:hover': { bgcolor: '#334155' } }}
-        >
-          Schedule Session
-        </Button>
+        {isAdmin && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => handleOpen()}
+            sx={{ bgcolor: '#1e293b', '&:hover': { bgcolor: '#334155' } }}
+          >
+            Schedule Session
+          </Button>
+        )}
       </Box>
 
       <Grid container spacing={3}>
         {sessions.map((session) => (
-          <Grid item xs={12} md={6} key={session.id}>
+          <Grid item xs={12} md={6} key={session.session_id}>
             <Paper
               sx={{
                 p: 3,
@@ -152,13 +158,17 @@ const Sessions = () => {
                 <Typography variant="h6" fontWeight={700} color="#1e293b">
                   {session.title}
                 </Typography>
-                <Box>
-                  <IconButton size="small" onClick={() => handleOpen(session)}>
-                    <Edit fontSize="small" />
-                  </IconButton>
-                  <IconButton size="small" onClick={() => handleDelete(session.id)} color="error">
-                    <Delete fontSize="small" />
-                  </IconButton>
+                 <Box>
+                  {isAdmin && (
+                    <>
+                      <IconButton size="small" onClick={() => handleOpen(session)}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" onClick={() => handleDelete(session.session_id)} color="error">
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </>
+                  )}
                 </Box>
               </Box>
               <Typography variant="body2" color="#64748b">

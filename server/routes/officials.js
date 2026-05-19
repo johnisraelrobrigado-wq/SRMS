@@ -17,11 +17,11 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/officials/:id
-router.get('/:id', authenticate, async (req, res) => {
+// GET /api/officials/:official_id
+router.get('/:official_id', authenticate, async (req, res) => {
   try {
     const official = await prisma.official.findUnique({
-      where: { id: parseInt(req.params.id) }
+      where: { official_id: parseInt(req.params.official_id) }
     });
 
     if (!official) {
@@ -58,13 +58,13 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
   }
 });
 
-// PUT /api/officials/:id (Admin only)
-router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+// PUT /api/officials/:official_id (Admin only)
+router.put('/:official_id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { name, position, contact, term_start, term_end, is_active } = req.body;
 
     const official = await prisma.official.update({
-      where: { id: parseInt(req.params.id) },
+      where: { official_id: parseInt(req.params.official_id) },
       data: {
         name,
         position,
@@ -82,11 +82,11 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   }
 });
 
-// DELETE /api/officials/:id (Admin only)
-router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+// DELETE /api/officials/:official_id (Admin only)
+router.delete('/:official_id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     await prisma.official.delete({
-      where: { id: parseInt(req.params.id) }
+      where: { official_id: parseInt(req.params.official_id) }
     });
 
     res.json({ message: 'Official permanently removed' });
